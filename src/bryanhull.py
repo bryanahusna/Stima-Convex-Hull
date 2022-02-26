@@ -1,51 +1,8 @@
-# Class Line merepresentasikan garis ax + by + c = 0
-# gradien m = -a/b
-from cv2 import convexHull
-from sympy import true
+from line import Line
+from utils import *
 
-
-class Line:
-    isTwoPoint = False  # True jika garis ini direpresentasikan oleh dua titik p1 dan p2, False jika direpresentasikan a, b, c
-    # Line mempunyai variabel a, b, c
-    # ATAU
-    # p1 dan p2
-    # Selain a, b, c, p1, dan p2, juga menghitung gradien m
-
-    # Karena Python tidak mendukung banyak konstruktor, setelah konstruksi panggil newLine(...)
-    def __init__(self):
-        pass
-
-    # Setter dengan masukan parameter a, b, dan c langsung
-    def setabc(self, a, b, c):
-        self.a = a
-        self.b = b
-        self.c = c
-        self.m = -a / b
-        self.isTwoPoint = False
-    
-    # Setter dengan membuat garis dari dua titik
-    def setTwoPoints(self, p1, p2):
-        # Pada representasi dua titik,
-        # a = m, b = -1, c = y1 - mx1
-        self.p1 = p1
-        self.p2 = p2
-        self.m = (p2[1] - p1[1]) / (p2[0] - p1[0])
-        self.a = self.m
-        self.b = -1
-        self.c = p1[1] - p1[0]*(p2[1] - p1[1]) / (p2[0] - p1[0])    # c = y1 - mx1
-        self.isTwoPoint = True
-    
-    # Mereturn jarak titik ke garis ini
-    def pointToLineDistance(self, p0):
-        if(not self.isTwoPoint):
-            return abs(self.a*p0[0] + self.b*p0[1] + self.c) / (self.a**2 + self.b**2)**0.5
-        else:
-            # Jika direpresentasikan dua titik,
-            # a = m, b = -1, c = y1 - mx1; tetapi untuk menjaga kepresisian dihitung langsung tidak dengan m yang telah dihitung sebelumnya
-            if(self.p2[0] - self.p1[0] == 0):   # Jika garis vertikal, jaraknya abs(x1 - x0)
-                return abs(self.p2[0] - p0[0])
-            return abs(p0[0]*(self.p2[1] - self.p1[1])/(self.p2[0] - self.p1[0]) - p0[1] + self.c) / (1 + (self.p2[1] - self.p1[1])**2 / (self.p2[0] - self.p1[0]) ** 2)**0.5
-
+# Class untuk menemukan convex hull
+# Hasil langsung dihitung ketika constructor dipanggil, disimpan di atribut simplices
 class ConvexHull:
     # vertices adalah list of point (x, y)
     vertices = []
@@ -55,30 +12,48 @@ class ConvexHull:
         self.convexHullInitial()
     
     def convexHullInitial(self):
-        self.vertices.sort(key=lambda k: [k[0], k[1]], reverse=False)
-        leftArr = []
-        rightArr = []
+        # Mengecek kasus khusus
+        if(len(self.vertices) == 0):
+            return
+        elif(len(self.vertices) == 1):
+            self.simplices.append(self.vertices[0])
+            return
+
+        self.vertices.sort(key=lambda k: [k[0], k[1]], reverse=False)   # Mengurutkan berdasarkan x menaik
+        upArr = []
+        downArr = []
         n = len(self.vertices)
+
+        # Titik paling kiri (0) dan kanan (n-1) termasuk dalam convex hull
+        self.simplices.append(self.vertices[0])
+        self.simplices.append(self.vertices[n-1])
+
+        # Menambahkan titik-titik ke atas atau bawah
         for i in range(1, n-1):
-            det = self.calculateDeterminan(0, n-1, i)
+            det = calculateDeterminan(self.vertices[0], self.vertices[n-1], self.vertices[i])
             if(det > 0):
-                leftArr.append(self.vertices[i])
+                upArr.append(self.vertices[i])
             elif(det < 0):
-                rightArr.append(self.vertices[i])
+                downArr.append(self.vertices[i])
             # Jika det == 0, tidak diolah karena jelas bukan titik convex hull
-        self.convexHull(leftArr, self.vertices[0], self.vertices[n-1], True)
-        self.convexHull(rightArr, self.vertices[0], self.vertices[n-1], False)
+        
+        # Penentuan titik convex hull bagian atas
+        self.convexHull(upArr, self.vertices[0], self.vertices[n-1])
+        # Penentuan titik convex hull bagian bawah
+        # array bagian bawah dibalik karena bagian bawah dapat dihitung memakai kode yang sama dengan bagian atas, tetapi dibalik
+        downArr.reverse()
+        self.convexHull(downArr, self.vertices[n-1], self.vertices[0])
     
-    def convexHull(self, arr, leftPoint, rightPoint, isUpSide):
+    def convexHull(self, arr, leftPoint, rightPoint):
         if(len(arr) == 0):
             return
-        if(len(arr) == 1):
+        if(len(arr) == 1):  # Kalau tersisa satu titik, titik tersebut masuk convex hull
             self.simplices.append(arr[0])
         elif(len(arr) > 1):
+            # Menentukan titik terjauh
             line = Line()
-            line.setTwoPoints(leftPoint, rightPoint)
-            # t = farthest point
-            t = arr[0]
+            line.setTwoPoints(leftPoint, rightPoint)    # Membuat garis antara titik kiri dan kanan, untuk pengukuran jarak
+            t = arr[0]  # titik terjauh saat ini
             tidx = 0
             tdist = line.pointToLineDistance(t)
             currdist = tdist
@@ -89,8 +64,9 @@ class ConvexHull:
                     tdist = currdist
                     tidx = i
             t = arr[tidx]
-            self.simplices.append(t)
+            self.simplices.append(t)    # Titik terjauh masuk convex hull
 
+            # Pembuatan daftar titik selanjutnya yang akan direkursi
             leftArr = []
             for i in range(tidx):
                 det = calculateDeterminan(leftPoint, t, arr[i])
@@ -102,28 +78,6 @@ class ConvexHull:
                 if(det > 0):
                     rightArr.append(arr[i])
             
-            self.convexHull(leftArr, leftPoint, t, isUpSide)
-            self.convexHull(rightArr, t, rightPoint, isUpSide)
-            # leftIdx1 = leftIdx
-            # rightIdx1 = t
-            # leftIdx2 = t
-            # rightIdx2 = rightIdx
-            # for i.x < t.x, calculateDeterminan if positif add to left
-            # for i > t.idx, calculateDeterminan if positif add to right
-            # rekurse
-
-    # Menghitung determinan (x1, y1), (x2, y2), (x3, y3) dengan OOP
-    # Positif berarti titik 3 di atas atau kiri garis titik 1 dan 2
-    # leftIdx mewakili indeks titik 1, rightIdx titik 2, dan checkIdx titik 3 pada self.vertices
-    # rumus: x1y2 + x3y1 + x2y3 - x3y2 - x2y1 - x1y3
-    def calculateDeterminan(self, leftIdx, rightIdx, checkIdx):
-        return (self.vertices[leftIdx][0]*self.vertices[rightIdx][1]
-            + self.vertices[checkIdx][0]*self.vertices[leftIdx][1]
-            + self.vertices[rightIdx][0]*self.vertices[checkIdx][1]
-            - self.vertices[checkIdx][0]*self.vertices[rightIdx][1]
-            - self.vertices[rightIdx][0]*self.vertices[leftIdx][1]
-            - self.vertices[leftIdx][0]*self.vertices[checkIdx][1])
-
-# Menghitung determinan dengan fungsi klasik
-def calculateDeterminan(pl, pr, p):
-    return (pl[0]*pr[1] + p[0]*pl[1] + pr[0]*p[1] - p[0]*pr[1] - pr[0]*pl[1] - pl[0]*p[1])
+            # Solve subproblem
+            self.convexHull(leftArr, leftPoint, t)
+            self.convexHull(rightArr, t, rightPoint)
