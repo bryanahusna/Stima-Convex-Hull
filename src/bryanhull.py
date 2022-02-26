@@ -5,10 +5,13 @@ from utils import *
 # Hasil langsung dihitung ketika constructor dipanggil, disimpan di atribut simplices
 class ConvexHull:
     # vertices adalah list of point (x, y)
-    vertices = []
-    simplices = []
+    #vertices = []
+    #convexhullpoints = []
+    #simplices = []
     def __init__(self, vertices):
         self.vertices = vertices.copy()
+        self.convexhullpoints = []
+        self.simplices = []
         self.convexHullInitial()
     
     def convexHullInitial(self):
@@ -16,68 +19,75 @@ class ConvexHull:
         if(len(self.vertices) == 0):
             return
         elif(len(self.vertices) == 1):
-            self.simplices.append(self.vertices[0])
+            self.convexhullpoints.append(self.vertices[0])
             return
 
         self.vertices.sort(key=lambda k: [k[0], k[1]], reverse=False)   # Mengurutkan berdasarkan x menaik
-        upArr = []
-        downArr = []
+        upIdxArr = []
+        downIdxArr = []
         n = len(self.vertices)
 
         # Titik paling kiri (0) dan kanan (n-1) termasuk dalam convex hull
-        self.simplices.append(self.vertices[0])
-        self.simplices.append(self.vertices[n-1])
+        self.convexhullpoints.append(self.vertices[0])
+        self.convexhullpoints.append(self.vertices[n-1])
 
         # Menambahkan titik-titik ke atas atau bawah
         for i in range(1, n-1):
             det = calculateDeterminan(self.vertices[0], self.vertices[n-1], self.vertices[i])
             if(det > 0):
-                upArr.append(self.vertices[i])
+                upIdxArr.append(i)
             elif(det < 0):
-                downArr.append(self.vertices[i])
+                downIdxArr.append(i)
             # Jika det == 0, tidak diolah karena jelas bukan titik convex hull
         
         # Penentuan titik convex hull bagian atas
-        self.convexHull(upArr, self.vertices[0], self.vertices[n-1])
+        self.convexHull(upIdxArr, 0, n-1)
         # Penentuan titik convex hull bagian bawah
         # array bagian bawah dibalik karena bagian bawah dapat dihitung memakai kode yang sama dengan bagian atas, tetapi dibalik
-        downArr.reverse()
-        self.convexHull(downArr, self.vertices[n-1], self.vertices[0])
+        downIdxArr.reverse()
+        self.convexHull(downIdxArr, n-1, 0)
+
+        if(len(self.simplices) == 0):
+            self.simplices.append(0, n-1)
     
-    def convexHull(self, arr, leftPoint, rightPoint):
-        if(len(arr) == 0):
+    def convexHull(self, idxArr, leftPointIdx, rightPointIdx):
+        if(len(idxArr) == 0):
             return
-        if(len(arr) == 1):  # Kalau tersisa satu titik, titik tersebut masuk convex hull
-            self.simplices.append(arr[0])
-        elif(len(arr) > 1):
+        if(len(idxArr) == 1):  # Kalau tersisa satu titik, titik tersebut masuk convex hull
+            self.convexhullpoints.append(self.vertices[idxArr[0]])
+            self.simplices.append([leftPointIdx, idxArr[0]])
+            self.simplices.append([idxArr[0], rightPointIdx])
+        elif(len(idxArr) > 1):
+            leftPoint = self.vertices[leftPointIdx]
+            rightPoint = self.vertices[rightPointIdx]
             # Menentukan titik terjauh
             line = Line()
             line.setTwoPoints(leftPoint, rightPoint)    # Membuat garis antara titik kiri dan kanan, untuk pengukuran jarak
-            t = arr[0]  # titik terjauh saat ini
+            t = self.vertices[idxArr[0]]  # titik terjauh saat ini
             tidx = 0
             tdist = line.pointToLineDistance(t)
             currdist = tdist
-            n = len(arr)
+            n = len(idxArr)
             for i in range(1, n):
-                currdist = line.pointToLineDistance(arr[i])
+                currdist = line.pointToLineDistance(self.vertices[idxArr[i]])
                 if(currdist > tdist):
                     tdist = currdist
                     tidx = i
-            t = arr[tidx]
-            self.simplices.append(t)    # Titik terjauh masuk convex hull
+            t = self.vertices[idxArr[tidx]]
+            self.convexhullpoints.append(t)    # Titik terjauh masuk convex hull
 
             # Pembuatan daftar titik selanjutnya yang akan direkursi
             leftArr = []
             for i in range(tidx):
-                det = calculateDeterminan(leftPoint, t, arr[i])
+                det = calculateDeterminan(leftPoint, t, self.vertices[idxArr[i]])
                 if(det > 0):
-                    leftArr.append(arr[i])
+                    leftArr.append(idxArr[i])
             rightArr = []
             for i in range(tidx+1, n):
-                det = calculateDeterminan(t, rightPoint, arr[i])
+                det = calculateDeterminan(t, rightPoint, self.vertices[idxArr[i]])
                 if(det > 0):
-                    rightArr.append(arr[i])
+                    rightArr.append(idxArr[i])
             
             # Solve subproblem
-            self.convexHull(leftArr, leftPoint, t)
-            self.convexHull(rightArr, t, rightPoint)
+            self.convexHull(leftArr, leftPointIdx, idxArr[tidx])
+            self.convexHull(rightArr, idxArr[tidx], rightPointIdx)
