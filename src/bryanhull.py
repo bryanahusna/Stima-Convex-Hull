@@ -9,9 +9,14 @@ class ConvexHull:
     #convexhullpoints = []
     #simplices = []
     def __init__(self, vertices):
-        self.vertices = vertices.copy()
+        self.vertices = []
         self.convexhullpoints = []
         self.simplices = []
+        i = 0
+        for vertex in vertices:
+            self.vertices.append(vertex.copy() + [i])
+            i += 1
+        
         self.convexHullInitial()
     
     def convexHullInitial(self):
@@ -41,14 +46,20 @@ class ConvexHull:
             # Jika det == 0, tidak diolah karena jelas bukan titik convex hull
         
         # Penentuan titik convex hull bagian atas
-        self.convexHull(upIdxArr, 0, n-1)
+        if(len(upIdxArr) == 0):
+            self.simplices.append([0, n-1])
+        else:
+            self.convexHull(upIdxArr, 0, n-1)
         # Penentuan titik convex hull bagian bawah
         # array bagian bawah dibalik karena bagian bawah dapat dihitung memakai kode yang sama dengan bagian atas, tetapi dibalik
-        downIdxArr.reverse()
-        self.convexHull(downIdxArr, n-1, 0)
-
-        if(len(self.simplices) == 0):
-            self.simplices.append(0, n-1)
+        if(len(downIdxArr) == 0):
+            self.simplices.append([n-1, 0])
+        else:
+            downIdxArr.reverse()
+            self.convexHull(downIdxArr, n-1, 0)
+        
+        for i in range(len(self.simplices)):
+            self.simplices[i] = [self.vertices[self.simplices[i][0]][2], self.vertices[self.simplices[i][1]][2]]
     
     def convexHull(self, idxArr, leftPointIdx, rightPointIdx):
         if(len(idxArr) == 0):
@@ -89,5 +100,12 @@ class ConvexHull:
                     rightArr.append(idxArr[i])
             
             # Solve subproblem
-            self.convexHull(leftArr, leftPointIdx, idxArr[tidx])
-            self.convexHull(rightArr, idxArr[tidx], rightPointIdx)
+            if(len(leftArr) == 0):
+                self.simplices.append([leftPointIdx, idxArr[tidx]])
+            else:
+                self.convexHull(leftArr, leftPointIdx, idxArr[tidx])
+
+            if(len(rightArr) == 0):
+                self.simplices.append([idxArr[tidx], rightPointIdx])
+            else:
+                self.convexHull(rightArr, idxArr[tidx], rightPointIdx)
