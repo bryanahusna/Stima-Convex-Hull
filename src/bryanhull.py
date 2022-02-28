@@ -1,3 +1,5 @@
+# Convex Hull
+# Bryan Amirul Husna / 13520146 / K02
 from line import Line
 from utils import *
 
@@ -16,9 +18,9 @@ class ConvexHull:
         for vertex in vertices:
             self.vertices.append(vertex.copy() + [i])
             i += 1
-        
         self.convexHullInitial()
     
+    # convexHullInitial untuk menangani pemanggilan pertama
     def convexHullInitial(self):
         # Mengecek kasus khusus
         if(len(self.vertices) == 0):
@@ -46,10 +48,11 @@ class ConvexHull:
             # Jika det == 0, tidak diolah karena jelas bukan titik convex hull
         
         # Penentuan titik convex hull bagian atas
-        if(len(upIdxArr) == 0):
+        if(len(upIdxArr) == 0): # Jika bagian atas kosong, masukkan [0, n-1] sebagai salah satu jalur
             self.simplices.append([0, n-1])
-        else:
-            self.convexHull(upIdxArr, 0, n-1)
+        else:   # Jika tidak panggil rekursif
+            self.convexHull(upIdxArr, 0, n-1)  
+
         # Penentuan titik convex hull bagian bawah
         # array bagian bawah dibalik karena bagian bawah dapat dihitung memakai kode yang sama dengan bagian atas, tetapi dibalik
         if(len(downIdxArr) == 0):
